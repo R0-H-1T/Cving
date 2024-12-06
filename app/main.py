@@ -1,13 +1,15 @@
 import flet as ft
-from controls import ChatMessage
+from controls import ChatMessage, AnswerMessage
 from dotenv import load_dotenv
 import base64
+from cv_model import model_computation
 
 load_dotenv()
 
 class AppLayout(ft.Row):
     def __init__(self, app, page: ft.Page, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.current_img = None
         self.app = app
         self.page = page
         self.pick_files_dialogue = ft.FilePicker(on_result=self.file_picker_result, on_upload=self.show_file_upload_progress)
@@ -15,9 +17,11 @@ class AppLayout(ft.Row):
         self.chat_window = ft.ListView(
             expand=True,
             auto_scroll=True,
-            spacing=10
+            spacing=10,
+            padding=ft.padding.only(left=250, right=250)
         )
         self.new_message = ft.TextField(
+            # prefix=self.attach_file_button,
             hint_text='enter message...',
             autofocus=True,
             filled=True,
@@ -52,7 +56,7 @@ class AppLayout(ft.Row):
                 controls=[
                     ft.Row([
                         ft.Card(
-                            width=300,
+                            width=70,
                             height=70,
                             content=ft.Row(controls=[self.attach_file_button, self.save_file_button]),
                             shape=ft.RoundedRectangleBorder.radius,
@@ -70,18 +74,32 @@ class AppLayout(ft.Row):
 
 
     def file_picker_result(self, e: ft.FilePickerResultEvent):
+        # @TODO some control to display the uploaded files
         self.attach_file_button.visible = True if e.files is None else False
         self.save_file_button.visible = True if e.files is not None else False
+        # self.attach_file_button.icon = ft.icons.SAVE
         self.page.update()
 
 
     def send_msg(self, e):
         if self.new_message.value:
+            query = self.new_message.value
             self.chat_window.controls.append(
-                ChatMessage(message=self.new_message.value)
+                ft.Row(
+                    alignment=ft.MainAxisAlignment.END,
+                    controls=[
+                    ChatMessage(message=self.new_message.value)
+                ])
             )
             self.new_message.value = ""
             self.page.update()
+            ans = model_computation(img=self.current_img, question=query)
+            self.chat_window.controls.append(
+                AnswerMessage(ans)
+            )
+            self.page.update()
+
+            
 
 
     def show_file_upload_progress(self, e: ft.FilePickerUploadEvent):
@@ -91,35 +109,36 @@ class AppLayout(ft.Row):
             self.show_image(e.file_name)        
         self.page.update()
 
-    def show_image(self, mf: str):
+    def show_image(self, mf: str = None):
         # @TODO refactor code 
         # no need to create a file object, pass path to Image control directly
-        with open(f'./app/assets/uploads/{mf}', 'rb') as r:
-                self.chat_window.controls.append(
-                    ft.Row(
-                        alignment=ft.MainAxisAlignment.START,
-                        controls=[
-                        ft.Image(
-                            src_base64=base64.b64encode(r.read()).decode(),
-                            width=300,
-                            height=200,
-                            fit=ft.ImageFit.CONTAIN,
-                            border_radius=ft.border_radius.all(10)
-                        )
-                    ]),
+        print(self.current_img)
+        self.chat_window.controls.append(
+            ft.Row(
+                alignment=ft.MainAxisAlignment.END,
+                controls=[
+                ft.Image(
+                    src=self.current_img,
+                    width=450,
+                    height=350,
+                    fit=ft.ImageFit.CONTAIN,
+                    border_radius=ft.border_radius.all(10)
                 )
+            ]),
+        )
         self.page.update()
 
 
     def upload_file(self, e):
         print('Welcome to file upload function')
         if self.pick_files_dialogue.result is not None and self.pick_files_dialogue.result.files is not None:
-            print(len(self.pick_files_dialogue.result.files))
-            mf = self.pick_files_dialogue.result.files[0]
-            print(mf.name)
             
-            filepicker_upload = ft.FilePickerUploadFile(name=mf.name, upload_url=self.page.get_upload_url(mf.name, 60))
-            self.pick_files_dialogue.upload([filepicker_upload])
+            mf = self.pick_files_dialogue.result.files[0]
+            self.current_img = mf.path
+            self.show_image()
+            
+            # filepicker_upload = ft.FilePickerUploadFile(name=mf.name, upload_url=self.page.get_upload_url(mf.name, 600))
+            # self.pick_files_dialogue.upload([filepicker_upload])
 
             self.save_file_button.visible = False
             self.attach_file_button.visible = True
@@ -134,14 +153,15 @@ class AppLayout(ft.Row):
 class CvingApp(AppLayout):
     def __init__(self, page: ft.Page):
         self.page = page
+        self.toggle_theme = ft.Ref[ft.IconButton]()
         self.page.appbar = ft.AppBar(
-            leading=ft.Icon(name=ft.icons.CAMERA, size=30),
+            # leading=ft.Icon(name=ft.icons.CAMERA, size=30),
             leading_width=30,
             title=ft.Text(value='CVing'),
             center_title=True,
             elevation=10,
             actions=[
-                ft.IconButton(icon=ft.icons.SUNNY)
+                ft.IconButton(icon=ft.icons.LIGHT_MODE, ref=self.toggle_theme, on_click=self.__change_theme)
             ]
             # bgcolor=ft.colors.BLUE_400
         )
@@ -151,9 +171,24 @@ class CvingApp(AppLayout):
             self.page
         )
 
+    def __change_theme(self, e: ft.ControlEvent):
+        match self.page.theme_mode:
+            case ft.ThemeMode.LIGHT:
+                self.page.theme_mode = ft.ThemeMode.DARK
+                self.toggle_theme = ft.icons.DARK_MODE
+            case ft.ThemeMode.DARK:
+                self.page.theme_mode = ft.ThemeMode.LIGHT
+                self.toggle_theme = ft.icons.LIGHT_MODE
+            case ft.ThemeMode.SYSTEM:
+                self.toggle_theme = ft.icons.CONTRAST
+                pass
+                # self.page.theme_mode = ft.ThemeMode.SYSTEM
+
+        self.page.update()     
 
 
 def main(page: ft.Page):
+    page.theme_mode = ft.ThemeMode.LIGHT
     page.title='CVing'
     app = CvingApp(page)
     page.add(app)
