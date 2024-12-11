@@ -27,5 +27,5 @@ def model_computation(img: str, question: str) -> List[str]:
 
 
 if __name__ == '__main__':
-    ans = model_computation('./Untitled.png', 'What do you not see in the image?')
-    print(ans)
+    ans = model_computation("C:/Users/rohit/Pictures/Screenshots/test_img.png", 'What do you see in the image?')
+    # print(ans)

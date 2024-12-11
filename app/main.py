@@ -1,10 +1,8 @@
 import flet as ft
 from controls import ChatMessage, AnswerMessage
-from dotenv import load_dotenv
-import base64
 from cv_model import model_computation
 
-load_dotenv()
+
 
 class AppLayout(ft.Row):
     def __init__(self, app, page: ft.Page, *args, **kwargs):
@@ -74,7 +72,7 @@ class AppLayout(ft.Row):
 
 
     def file_picker_result(self, e: ft.FilePickerResultEvent):
-        # @TODO some control to display the uploaded files
+        # TODO some control to display the uploaded files
         self.attach_file_button.visible = True if e.files is None else False
         self.save_file_button.visible = True if e.files is not None else False
         # self.attach_file_button.icon = ft.icons.SAVE
@@ -157,7 +155,7 @@ class CvingApp(AppLayout):
         self.page.appbar = ft.AppBar(
             # leading=ft.Icon(name=ft.icons.CAMERA, size=30),
             leading_width=30,
-            title=ft.Text(value='CVing'),
+            title=ft.Text(value='Cving'),
             center_title=True,
             elevation=10,
             actions=[
