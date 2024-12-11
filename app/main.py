@@ -1,19 +1,19 @@
 import flet as ft
-from controls import ChatMessage, AnswerMessage
+from controls import ChatMessage, AnswerMessage, AppBarControl
 from cv_model import model_computation
 
 
 
-class AppLayout(ft.Row):
-    def __init__(self, app, page: ft.Page, *args, **kwargs):
+class VQApp(ft.Column):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.current_img = None
-        self.app = app
-        self.page = page
+        # self.app = app
+        # self.page = page
         self.pick_files_dialogue = ft.FilePicker(on_result=self.file_picker_result, on_upload=self.show_file_upload_progress)
-        self.page.overlay.append(self.pick_files_dialogue)
+        
         self.chat_window = ft.ListView(
-            expand=True,
+            expand=9,
             auto_scroll=True,
             spacing=10,
             padding=ft.padding.only(left=250, right=250)
@@ -48,7 +48,7 @@ class AppLayout(ft.Row):
             on_click=self.upload_file
         )
 
-        self.page.add(
+        self.controls = [
             ft.Container(content=self.chat_window, padding=10, expand=True),
             ft.Column(
                 controls=[
@@ -68,7 +68,7 @@ class AppLayout(ft.Row):
                     ])
                 ],
             )
-        )
+        ]
 
 
     def file_picker_result(self, e: ft.FilePickerResultEvent):
@@ -76,7 +76,8 @@ class AppLayout(ft.Row):
         self.attach_file_button.visible = True if e.files is None else False
         self.save_file_button.visible = True if e.files is not None else False
         # self.attach_file_button.icon = ft.icons.SAVE
-        self.page.update()
+        self.update()
+        # self.page.update()
 
 
     def send_msg(self, e):
@@ -90,22 +91,27 @@ class AppLayout(ft.Row):
                 ])
             )
             self.new_message.value = ""
-            self.page.update()
+            # self.page.update()
+            self.update()
             ans = model_computation(img=self.current_img, question=query)
             self.chat_window.controls.append(
                 AnswerMessage(ans)
             )
-            self.page.update()
+            self.update()
 
-            
+    
+    def build(self):
+        self.expand=True
+        self.alignment=ft.MainAxisAlignment.END
+        self.page.overlay.append(self.pick_files_dialogue)
 
 
     def show_file_upload_progress(self, e: ft.FilePickerUploadEvent):
         # self.chat_window.controls.append(ft.Text(value=e.progress))
-        self.page.update()
+        self.update()
         if e.progress == 1:
             self.show_image(e.file_name)        
-        self.page.update()
+        self.update()
 
     def show_image(self, mf: str = None):
         # @TODO refactor code 
@@ -124,7 +130,7 @@ class AppLayout(ft.Row):
                 )
             ]),
         )
-        self.page.update()
+        self.update()
 
 
     def upload_file(self, e):
@@ -134,63 +140,80 @@ class AppLayout(ft.Row):
             mf = self.pick_files_dialogue.result.files[0]
             self.current_img = mf.path
             self.show_image()
-            
-            # filepicker_upload = ft.FilePickerUploadFile(name=mf.name, upload_url=self.page.get_upload_url(mf.name, 600))
-            # self.pick_files_dialogue.upload([filepicker_upload])
 
             self.save_file_button.visible = False
             self.attach_file_button.visible = True
 
-            self.page.update()
+            self.update()
             
 
         
 
 
-
-class CvingApp(AppLayout):
+class RoutePages(ft.View):
     def __init__(self, page: ft.Page):
+        super().__init__()
         self.page = page
-        self.toggle_theme = ft.Ref[ft.IconButton]()
-        self.page.appbar = ft.AppBar(
-            # leading=ft.Icon(name=ft.icons.CAMERA, size=30),
-            leading_width=30,
-            title=ft.Text(value='Cving'),
-            center_title=True,
-            elevation=10,
-            actions=[
-                ft.IconButton(icon=ft.icons.LIGHT_MODE, ref=self.toggle_theme, on_click=self.__change_theme)
-            ]
-            # bgcolor=ft.colors.BLUE_400
+
+    def route_change(self, e: ft.RouteChangeEvent):
+        self.page.views.clear()
+        self.page.views.append(
+            ft.View(
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                appbar=AppBarControl(),
+                route="/",
+                controls=[
+                    ft.Column(
+                        controls=[
+                            ft.ElevatedButton("Visual QnA", on_click=lambda _: self.page.go("/vqa")),
+                            ft.ElevatedButton("Photo Organization", on_click=lambda _: self.page.go("/image_class")),
+
+                        ],
+                        expand=True,
+                        alignment=ft.MainAxisAlignment.CENTER
+                    ),
+                ],
+            )
         )
+        if self.page.route == "/vqa":
+            self.page.views.append(
+                ft.View(
+                    appbar=AppBarControl(),
+                    route="/vqa",
+                    controls=[
+                        VQApp()
+                    ],
+                )
+            )
+        if self.page.route == "/image_class":
+            self.page.views.append(
+                ft.View(
+                    appbar=AppBarControl(),
+                    route="/image_class",
+                    controls=[
+                        ft.ElevatedButton("Go Home", on_click=lambda _: self.page.go("/")),
+                    ],
+                )
+            )
         self.page.update()
-        super().__init__(
-            self,
-            self.page
-        )
 
-    def __change_theme(self, e: ft.ControlEvent):
-        match self.page.theme_mode:
-            case ft.ThemeMode.LIGHT:
-                self.page.theme_mode = ft.ThemeMode.DARK
-                self.toggle_theme = ft.icons.DARK_MODE
-            case ft.ThemeMode.DARK:
-                self.page.theme_mode = ft.ThemeMode.LIGHT
-                self.toggle_theme = ft.icons.LIGHT_MODE
-            case ft.ThemeMode.SYSTEM:
-                self.toggle_theme = ft.icons.CONTRAST
-                pass
-                # self.page.theme_mode = ft.ThemeMode.SYSTEM
+    def view_pop(self, e: ft.ViewPopEvent):
+        self.page.views.pop()
+        top_view = self.page.views[-1]
+        self.page.go(top_view.route)
 
-        self.page.update()     
+
+    def build(self):
+        self.expand=True
+        self.bgcolor = ft.Colors.AMBER_100
 
 
 def main(page: ft.Page):
     page.theme_mode = ft.ThemeMode.LIGHT
-    page.title='CVing'
-    app = CvingApp(page)
-    page.add(app)
-    page.update()
+    page.title='Cving'
+    page.on_route_change = RoutePages(page).route_change
+    page.on_view_pop = RoutePages(page).view_pop
+    page.go(page.route)
 
 
 

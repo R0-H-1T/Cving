@@ -55,5 +55,54 @@ class AnswerMessage(ft.Row):
             # )
         self.controls.append(self.my_row)
 
+
+
+
+class IconThemeChange(ft.IconButton):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)   
+
+    def build(self):
+        match self.page.theme_mode:
+            case ft.ThemeMode.LIGHT:
+                self.icon = ft.Icons.LIGHT_MODE
+            case ft.ThemeMode.DARK:
+                self.icon = ft.Icons.DARK_MODE
+            case _:
+                self.icon = ft.Icons.CONTRAST
+        self.on_click = self.__on_click
         
-            
+    def __on_click(self, e):
+        match self.page.theme_mode:
+            case ft.ThemeMode.LIGHT:
+                self.page.theme_mode = ft.ThemeMode.DARK
+            case ft.ThemeMode.DARK:
+                self.page.theme_mode = ft.ThemeMode.LIGHT
+            case _:
+                pass
+
+        self.page.update()
+
+
+
+class AppBarControl(ft.AppBar):
+    def __init__(self):
+        super().__init__()
+        self.toggle_theme = ft.Ref[ft.IconButton]()
+        # self.title = ft.Text("AppBar Example"),
+        # self.title=ft.Text(value='Cving'),
+        
+        self.actions=[
+            IconThemeChange()
+        ]
+
+    def build(self):
+        if self.page.route == '/vqa':
+            self.title=ft.Text("Visual Question Answering")
+            self.center_title=True,
+        elif self.page.route == '/image_class':
+            self.title=ft.Text('Image Organization')
+            self.center_title=True,
+        else:
+            self.title=ft.Text('Cving')
+            self.center_title=True,
