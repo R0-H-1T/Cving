@@ -1,5 +1,5 @@
 import flet as ft
-from controls import ChatMessage, AnswerMessage, AppBarControl
+from controls import ChatMessage, AnswerMessage, AppBarControl, ImgOrg
 from cv_model import model_computation
 
 
@@ -8,8 +8,6 @@ class VQApp(ft.Column):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.current_img = None
-        # self.app = app
-        # self.page = page
         self.pick_files_dialogue = ft.FilePicker(on_result=self.file_picker_result, on_upload=self.show_file_upload_progress)
         
         self.chat_window = ft.ListView(
@@ -19,7 +17,6 @@ class VQApp(ft.Column):
             padding=ft.padding.only(left=250, right=250)
         )
         self.new_message = ft.TextField(
-            # prefix=self.attach_file_button,
             hint_text='enter message...',
             autofocus=True,
             filled=True,
@@ -77,7 +74,6 @@ class VQApp(ft.Column):
         self.save_file_button.visible = True if e.files is not None else False
         # self.attach_file_button.icon = ft.icons.SAVE
         self.update()
-        # self.page.update()
 
 
     def send_msg(self, e):
@@ -91,7 +87,6 @@ class VQApp(ft.Column):
                 ])
             )
             self.new_message.value = ""
-            # self.page.update()
             self.update()
             ans = model_computation(img=self.current_img, question=query)
             self.chat_window.controls.append(
@@ -107,15 +102,12 @@ class VQApp(ft.Column):
 
 
     def show_file_upload_progress(self, e: ft.FilePickerUploadEvent):
-        # self.chat_window.controls.append(ft.Text(value=e.progress))
         self.update()
         if e.progress == 1:
             self.show_image(e.file_name)        
         self.update()
 
     def show_image(self, mf: str = None):
-        # @TODO refactor code 
-        # no need to create a file object, pass path to Image control directly
         print(self.current_img)
         self.chat_window.controls.append(
             ft.Row(
@@ -134,7 +126,6 @@ class VQApp(ft.Column):
 
 
     def upload_file(self, e):
-        print('Welcome to file upload function')
         if self.pick_files_dialogue.result is not None and self.pick_files_dialogue.result.files is not None:
             
             mf = self.pick_files_dialogue.result.files[0]
@@ -161,6 +152,8 @@ class RoutePages(ft.View):
             ft.View(
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                 appbar=AppBarControl(),
+                # TODO
+                # create enums for the path routes.
                 route="/",
                 controls=[
                     ft.Column(
@@ -191,7 +184,7 @@ class RoutePages(ft.View):
                     appbar=AppBarControl(),
                     route="/image_class",
                     controls=[
-                        ft.ElevatedButton("Go Home", on_click=lambda _: self.page.go("/")),
+                        ImgOrg()
                     ],
                 )
             )
@@ -202,14 +195,13 @@ class RoutePages(ft.View):
         top_view = self.page.views[-1]
         self.page.go(top_view.route)
 
-
     def build(self):
         self.expand=True
         self.bgcolor = ft.Colors.AMBER_100
 
 
 def main(page: ft.Page):
-    page.theme_mode = ft.ThemeMode.LIGHT
+    page.theme_mode = ft.ThemeMode.DARK
     page.title='Cving'
     page.on_route_change = RoutePages(page).route_change
     page.on_view_pop = RoutePages(page).view_pop
@@ -218,4 +210,7 @@ def main(page: ft.Page):
 
 
 if __name__ == "__main__":
-    ft.app(target=main, upload_dir='assets/uploads')
+    # NOTE
+    # Run app from the current dir as -
+    # flet run main.py
+    ft.app(target=main)
